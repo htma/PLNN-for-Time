@@ -1,4 +1,3 @@
-from __future__ import print_function
 import argparse
 import torch
 import torch.nn as nn
@@ -8,13 +7,13 @@ from torchvision import datasets, transforms
 
 from data_loader import MyCustomDataset
 
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.fc1 = nn.Linear(286, 4)
-        self.fc2 = nn.Linear(4, 16)
-        self.fc3 = nn.Linear(16, 2)
-        self.fc4 = nn.Linear(2, 2)
+class PLNN(nn.Module):
+    def __init__(self,D_in, H1, H2, H3, D_out):
+        super(PLNN, self).__init__()
+        self.fc1 = nn.Linear(D_in, H1)
+        self.fc2 = nn.Linear(H1, H2)
+        self.fc3 = nn.Linear(H2, H3)
+        self.fc4 = nn.Linear(H3, D_out)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -23,43 +22,6 @@ class Net(nn.Module):
         x = self.fc4(x)
         return F.log_softmax(x, dim=1)
 
-def train(args, model, device, train_loader, optimizer, epoch):
-    model.train()
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(device), target.to(device)
-#        data = data.view(-1, 2) # maybe should use this line for multiple dimension data
-        optimizer.zero_grad()
-        output = model(data)
-        loss = F.nll_loss(output, target)
-        loss.backward()
-        optimizer.step()
-
-#        if batch_idx % args.log_interval == 0:
-        if epoch % 50 == 0:
-       #     print('########', batch_idx, len(data), len(train_loader.dataset), len(train_loader))
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\t Loss: {:.6f}'.format(
-                epoch, (batch_idx+1)*len(data), len(train_loader.dataset), 100.*(batch_idx+1)/len(train_loader), loss.item()))
-
-def test(args, model, device, test_loader,epoch):
-    model.eval()
-    test_loss, correct = 0.0, 0
-
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-#            data = data.view(-1, 2)
-            output = model(data)
-            test_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
-            pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
-            correct += pred.eq(target.view_as(pred)).sum().item()
-
-    test_loss /= len(test_loader.dataset)
-
-    if epoch % 50 == 0:
-        print('\nTest set Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-            test_loss, correct, len(test_loader.dataset),
-            100. * correct / len(test_loader.dataset)))
-    
 def main():
     # Training settings
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
@@ -101,31 +63,49 @@ def main():
 #    print('length of test loader', len(test_loader))
  #   print('length of test loader dataset', len(test_loader.dataset))
 
-    # train_loader = torch.utils.data.DataLoader(
-    #     datasets.MNIST('../data', train=True, download=True,
-    #                    transform=transforms.Compose([
-    #                        transforms.ToTensor()
-    #                        ])),
-    #     batch_size=args.batch_size, shuffle=True, **kwargs)
-
-    # test_loader = torch.utils.data.DataLoader(
-    #     datasets.MNIST('../data', train=False,
-    #                    transform=transforms.Compose([
-    #                        transforms.ToTensor()
-    #                        ])),
-    #     batch_size=args.test_batch_size, shuffle=True,**kwargs)
-    
+    # define model
+    D_in, D_out = 286, 2
+    H1, H2, H3 = 4, 16, 2
     # training the model
-    model = Net().to(device)
+    model = PLNN(D_in, H1, H2, H3, D_out).to(device)
     print(model)
     optimizer = optim.SGD(model.parameters(), lr=args.lr,
                           momentum=args.momentum)
     for epoch in range(1, args.epochs+1):
-        train(args, model, device, train_loader, optimizer, epoch)
-        test(args, model, device, test_loader,epoch)
+        for batch_idx, (data, target) in enumerate(train_loader):
+            data, target = data.to(device), target.to(device)
+            #        data = data.view(-1, 2) # maybe should use this line for multiple dimension data
+            optimizer.zero_grad()
+            output = model(data)
+            loss = F.nll_loss(output, target)
+            loss.backward()
+            optimizer.step()
+
+        if epoch % 50 == 0:
+       #     print('########', batch_idx, len(data), len(train_loader.dataset), len(train_loader))
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\t Loss: {:.6f}'.format(
+                epoch, (batch_idx+1)*len(data), len(train_loader.dataset), 100.*(batch_idx+1)/len(train_loader), loss.item()))
+
+#       testing
+        model.eval()
+        test_loss, correct = 0.0, 0
+        with torch.no_grad():
+            for data, target in test_loader:
+                data, target = data.to(device), target.to(device)
+                output = model(data)
+                test_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
+                pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
+                correct += pred.eq(target.view_as(pred)).sum().item()
+
+            test_loss /= len(test_loader.dataset)
+
+        if epoch % 50 == 0:
+            print('\nTest set Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+                test_loss, correct, len(test_loader.dataset),
+                100. * correct / len(test_loader.dataset)))
 
     if (args.save_model):
-        torch.save(model.state_dict(), 'mnist_cnn.pt')
+        torch.save(model.state_dict(), 'coffee_plnn.pt')
 
 if __name__ == '__main__':
     main()
