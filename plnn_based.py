@@ -24,7 +24,7 @@ class PLNN(nn.Module):
 
 def main():
     # Training settings
-    parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
+    parser = argparse.ArgumentParser(description='PLNN Coffee Example')
     parser.add_argument('--batch-size', type=int, default=64,
                         metavar='N', help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N', help='input batch size for testing (default: 1000)')
@@ -39,7 +39,7 @@ def main():
                         help='random seed (default: 1)')
     parser.add_argument('--log-interval', type=int, default=50,
                         metavar='N', help='how many batches to wait before logging training status')
-    parser.add_argument('--save-model', action='store_true', default=False, help='For saving the current model')
+    parser.add_argument('--save-model', action='store_true', default=True, help='For saving the current model')
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_avaiable()
 
@@ -108,7 +108,24 @@ def main():
         torch.save(model.state_dict(), 'coffee_plnn.pt')
 
 if __name__ == '__main__':
-    main()
+    #main()
+    D_in, D_out = 286, 2
+    H1, H2, H3 = 4, 16, 2
+    model = PLNN(D_in, H1, H2, H3, D_out)
+    model.load_state_dict(torch.load('./coffee_plnn.pt'))
+    #print(model)
+    test_loader = torch.utils.data.DataLoader(
+        MyCustomDataset('./data/coffee_test.csv',
+                        transform=transforms.Compose([
+                            transforms.ToTensor()])),
+        batch_size=64, shuffle=True)
+
+    model.eval()
+    data,target = test_loader.dataset[0][0], test_loader.dataset[0][1]
+    data = data.view(-1, 286)
+    output= model(data)
+    pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
+    print(pred.data, target)
         
     
                         
