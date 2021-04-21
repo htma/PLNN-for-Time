@@ -27,20 +27,48 @@ class PLNN(nn.Module):
         self.fc4 = nn.Linear(H3, D_out)
 
     def forward(self, x):
-        act_states = []
+        states = {}
         h1 = F.relu(self.fc1(x))
-        h1_states = active_state(h1)
-        print('Hidden Layer 1 output : ', h1)
-        print('Hidden Layer 1 active states: ', h1_states)
+        states['h1'] = active_state(h1)
+        print('Hidden Layer 1 active states: ', states['h1'])
         h2 = F.relu(self.fc2(h1))
-        h2_states = active_state(h2)
+        states['h2'] = active_state(h2)
         h3 = F.relu(self.fc3(h2))
-        h3_states = active_state(h3)
-        act_states = list(np.hstack([h1_states, h2_states, h3_states]))
-                                    
+        states['h3'] = active_state(h3)
+#                                    
         out = self.fc4(h3)
         out = F.log_softmax(out, dim=1)
-        return act_states, out
+        return states, out
+
+def calculate_inequality_cofficients(model, data):
+    states, output = model(data)
+    w1, b1 = model.state_dict()['fc1.weight'], model.state_dict()['fc1.bias']
+    w2, b2 = model.state_dict()['fc2.weight'], model.state_dict()['fc2.bias']
+    w3, b3 = model.state_dict()['fc3.weight'], model.state_dict()['fc3.bias']
+    w4, b4 = model.state_dict()['fc4.weight'], model.state_dict()['fc4.bias']
+    
+    diag_s1 = torch.diag(torch.tensor((states['h1']),
+                                      dtype=torch.float32))
+    w2_hat = torch.matmul(w2, torch.matmul(diag_s1, w1))
+    b2_hat = torch.matmul(w2, torch.matmul(diag_s1, b1)) + b2
+
+    diag_s2 = torch.diag(torch.tensor((states['h2']),
+                                      dtype=torch.float32))
+
+    w3_hat = torch.matmul(w3, torch.matmul(diag_s2, w2_hat))
+    b3_hat = torch.matmul(w3, torch.matmul(diag_s2, b2_hat)) + b3
+#    print(w3_hat.size(), b3_hat.size())
+
+    weights = torch.cat((w1, w2_hat, w3_hat)).numpy()
+    bias = torch.cat((b1, b2_hat, b3_hat)).numpy()
+    bias = bias.reshape(22, 1)
+    active_states = np.hstack((states['h1'], states['h2'],
+                               states['h3'])).astype(int)
+    active_states = active_states.reshape(22, 1)
+
+    weight_bias = np.append(weights, bias, axis=1)
+    weight_bias_states = np.append(weight_bias, active_states, axis=1)
+    print(weight_bias_states)
 
 if __name__ == '__main__':
     #main()
@@ -60,8 +88,9 @@ if __name__ == '__main__':
     data = data.view(-1, 286)
     states, output= model(data)
     pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
-    print(pred.data, target)
-    print("sates : ", states)
+  #  print(pred.data, target)
+ #   print("states : ", states.items())
+#    calculate_inequality_cofficients(model, data)
         
     
                         
