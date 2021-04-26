@@ -40,8 +40,12 @@ class PLNN(nn.Module):
         out = F.log_softmax(out, dim=1)
         return states, out
 
-def calculate_inequality_cofficients(model, data):
+def calculate_inequality_cofficients(model, data, filename):
     states, output = model(data)
+#    _, prediction = torch.max(output.data, 1)
+ #   prediction = np.array(prediction)
+  #  prediction = prediction.reshape(prediction.shape[0],1)
+  #  print("prediction is ", prediction)
     w1, b1 = model.state_dict()['fc1.weight'], model.state_dict()['fc1.bias']
     w2, b2 = model.state_dict()['fc2.weight'], model.state_dict()['fc2.bias']
     w3, b3 = model.state_dict()['fc3.weight'], model.state_dict()['fc3.bias']
@@ -67,8 +71,47 @@ def calculate_inequality_cofficients(model, data):
     active_states = active_states.reshape(22, 1)
 
     weight_bias = np.append(weights, bias, axis=1)
+
     weight_bias_states = np.append(weight_bias, active_states, axis=1)
-    print(weight_bias_states)
+
+    print(len(weight_bias_states))
+    output_file = open(filename, 'wb')
+    np.savetxt(output_file, weight_bias_states, delimiter=',')
+    output_file.close()
+    return filename
+
+def calculate_feasible_range(file_name):
+    '''
+       First devide  inequality cofficients into two classes, le_zeros and g_zeros. le_zeros means that of ax + by + c <= 0 and g_zeros means that of ax+by+c > 0).
+       '''
+    weight_bias_states = np.loadtxt(file_name, delimiter=',')
+   
+    le_zeros = weight_bias_states[weight_bias_states[(slice(None),-1)]<=0]
+    g_zeros = weight_bias_states[weight_bias_states[(slice(None),-1)] > 0]
+
+    # change the le_zeros to greate zeros by multiply -1 to the both sides of the inequality. That means make ax+by+c <= 0 to -ax-by-c > 0.
+    nle_zeros = -1 * le_zeros
+
+    # make the right sides of all equalities to be 0.
+    nle_zeros[:,-1] = 0
+    g_zeros[:,-1] = 0
+
+    feasible_range = np.concatenate((nle_zeros, g_zeros), axis=0)
+    print(len(feasible_range[0]))
+    return feasible_range
+    
+
+def process_negative_ys(negative_y_states):
+
+    states = -1*negative_y_states
+    print(states[:,-1])
+    zero_states = states[states[:,-1] == 0]
+    print(zero_states[:,-1])
+    print('one states size is ', len(zero_states))
+    one_states = states[states[:,-1] == -1]
+    zero_to_one_states = np.column_stack((zero_states[:,-1], np.ones(zero_states.shape[0])))
+    one_to_zero_states = np.column_stack((one_states[:,-1], np.zeros(one_states.shape[0])))
+    return np.concatenate((zero_to_one_states, one_to_zero_states), axis=0)
 
 if __name__ == '__main__':
     #main()
@@ -90,7 +133,11 @@ if __name__ == '__main__':
     pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
   #  print(pred.data, target)
  #   print("states : ", states.items())
-#    calculate_inequality_cofficients(model, data)
+    filename = './inequality_coeff.txt'
+    calculate_inequality_cofficients(model, data, filename)
+    calculate_feasible_range(filename)
+    
+  
         
     
                         
