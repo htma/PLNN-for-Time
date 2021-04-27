@@ -80,39 +80,35 @@ def calculate_inequality_cofficients(model, data, filename):
     output_file.close()
     return filename
 
-def calculate_feasible_range(file_name):
+def change_inequality_signs(coefficient_filename):
     '''
-       First devide  inequality cofficients into two classes, le_zeros and g_zeros. le_zeros means that of ax + by + c <= 0 and g_zeros means that of ax+by+c > 0).
+       Change all the inequalities such that less and equal zeros into greate zeros by multiply -1 to both sides of them. That is, change  ax + by + c <= 0 into -ax-by-c > 0.
        '''
-    weight_bias_states = np.loadtxt(file_name, delimiter=',')
+    weight_bias_states = np.loadtxt(coefficient_filename, delimiter=',')
    
     le_zeros = weight_bias_states[weight_bias_states[(slice(None),-1)]<=0]
     g_zeros = weight_bias_states[weight_bias_states[(slice(None),-1)] > 0]
 
-    # change the le_zeros to greate zeros by multiply -1 to the both sides of the inequality. That means make ax+by+c <= 0 to -ax-by-c > 0.
     nle_zeros = -1 * le_zeros
 
     # make the right sides of all equalities to be 0.
     nle_zeros[:,-1] = 0
     g_zeros[:,-1] = 0
 
-    feasible_range = np.concatenate((nle_zeros, g_zeros), axis=0)
-    print(len(feasible_range[0]))
-    return feasible_range
+    coefficients = np.concatenate((nle_zeros, g_zeros), axis=0)
+    return coefficients
+
+def check_inequality_coefficients(data, coefficient_filename):
+    ''' Check '''
+    coefficients = change_inequality_signs(coefficient_filename)
+    weights = coefficients[:, :len(coefficients[0])-2]
+    bias = coefficients[:, len(coefficients[0])-2:-1]
+
+    x = data.numpy()
+    x = x.reshape(-1, 1)
+    print(x.shape)
+    print(np.matmul(weights, x)+bias) # all should be greate zeros
     
-
-def process_negative_ys(negative_y_states):
-
-    states = -1*negative_y_states
-    print(states[:,-1])
-    zero_states = states[states[:,-1] == 0]
-    print(zero_states[:,-1])
-    print('one states size is ', len(zero_states))
-    one_states = states[states[:,-1] == -1]
-    zero_to_one_states = np.column_stack((zero_states[:,-1], np.ones(zero_states.shape[0])))
-    one_to_zero_states = np.column_stack((one_states[:,-1], np.zeros(one_states.shape[0])))
-    return np.concatenate((zero_to_one_states, one_to_zero_states), axis=0)
-
 if __name__ == '__main__':
     #main()
     D_in, D_out = 286, 2
@@ -133,9 +129,8 @@ if __name__ == '__main__':
     pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
   #  print(pred.data, target)
  #   print("states : ", states.items())
-    filename = './inequality_coeff.txt'
-    calculate_inequality_cofficients(model, data, filename)
-    calculate_feasible_range(filename)
+    inequality_coefficient_filename = './inequality_coeff.txt'
+    check_inequality_coefficients(data, inequality_coefficient_filename)
     
   
         
