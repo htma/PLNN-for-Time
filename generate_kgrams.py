@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-
+import matplotlib.pyplot as plt
 k = 28 # size of grams 
 
 def kgram(k, ts):
@@ -17,8 +17,8 @@ def calculate_product(w, x, b):
       Return the number of result less zeros.
     '''
     product = np.matmul(w, x)+b
-    print(product)
     return len(product[product<0])
+
 def main():
     # load one time series
     coffee_test = pd.read_csv('data/coffee_test.csv', sep=',', header=None).astype(float)
@@ -40,9 +40,19 @@ def main():
     print(weight_grams[1].shape)
 #    bias_grams = kgram(k, bias)
  #   print(bias_grams[0].shape)
+    num_less_zeros = {}
     for i in range(10):
         result = calculate_product(weight_grams[i], ts_grams[i], bias[i])
-        print("number of less zeros: ", result)
+        num_less_zeros[i+1] = result
+    print("number of less zeros: ", num_less_zeros)
+    plot_tsgram(one_ts, ts_grams)
+
+def plot_tsgram(ts,ts_grams):
+    plt.plot(ts, 'b')
+    plt.plot(range(168,196), ts_grams[6], 'r',linewidth=2.5)
+    plt.plot(range(224,252), ts_grams[8], 'r', linewidth=2.5)
+    plt.title("The shapelet")
+    plt.show()
     
 if __name__ == '__main__':
     main()
