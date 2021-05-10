@@ -26,26 +26,28 @@ def main():
     coffee_test = pd.read_csv('data/coffee_test.csv', sep=',', header=None).astype(float)
     coffee_test_y = coffee_test.loc[:, 0].astype(int)
     coffee_test_x = coffee_test.loc[:,1:]
-    one_ts = np.array(coffee_test_x.loc[0,:])
-    print(one_ts)
-    ts_grams = kgram(k, one_ts)
+#    one_ts = np.array(coffee_test_x.loc[0,:])
+ #   ts_grams = kgram(k, one_ts)
 
     # load coefficients
     coefficients = np.loadtxt('./inequality_coeff.txt', delimiter=',')
     weights = coefficients[:,:-2]
     bias = coefficients[:,286:-1]
-    one_gram = ts_grams[0]
-    one_gram = one_gram.reshape(-1, 28)
-
+  
     weight_grams = weight_kgram(k, weights)
     print(weight_grams[1].shape)
 
-    num_less_zeros = {} # number of greate zeros changed into less zeros 
-    for i in range(10):
-        result = calculate_product(weight_grams[i], ts_grams[i], bias[i])
-        num_less_zeros[i+1] = result
-    print("number of less zeros: ", num_less_zeros)
-    plot_tsgram(one_ts, ts_grams)
+    num_less_zeros = {} # number of greate zeros changed into less zeros
+
+    for i in range(22):
+        one_ts = np.array(coffee_test_x.loc[i,:])
+        ts_grams = kgram(k, one_ts)
+
+        for i in range(10):
+            result = calculate_product(weight_grams[i], ts_grams[i], bias[i])
+            num_less_zeros[i+1] = result
+        print("number of less zeros: ", num_less_zeros)
+#        plot_tsgram(one_ts, ts_grams)
 
 def plot_tsgram(ts,ts_grams):
     plt.plot(ts, 'b')
